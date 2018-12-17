@@ -1,0 +1,141 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use File::Basename;
+use File::Path;
+use LWP;
+use Digest::MD5 qw(md5_hex);
+use Log::Dispatch;
+use Symbol qw(delete_package);
+use Getopt::Long qw(GetOptions);
+
+# Constants
+my $script_name = 'aur-helper';
+my $script_dir = dirname(__FILE__);
+my $tmp_build = "${script_dir}/build";
+my $package_dir = "${script_dir}/packages";
+my $dlink_script = 'download_links';
+my $test_script = 'test';
+my $current_package = '';
+
+# Log to syslog
+my $logger = Log::Dispatch->new(
+    outputs => [
+        [
+            'Syslog',
+            min_level => 'info',
+            ident => $script_name,
+        ]
+    ]
+);
+
+my $help = <<"EOF";
+Usage: $0 [Options]
+-c      --check     Checks for updates
+-p      --package   The package name
+EOF
+
+# Command line options
+my @dirs = grep { -d } glob "$package_dir/*";
+my $should_check = 0;
+
+GetOptions(
+    "package=s" => \@dirs,
+    "check!" => \$should_check,
+    "help" => sub { print $help; exit 0 },
+) or die ("Error in command line arugments\n");
+
+# Construct the log message based on the current package being worked on
+sub get_message {
+    my $message = shift;
+    return $current_package eq '' ? $message : "$current_package: $message";
+}
+
+sub delete_dir {
+    my $dir = shift;
+
+    rmtree $dir;
+    # Make sure it is deleted
+    if (-d $dir) {
+        $logger->emerg(get_message("Could not delete $dir"));
+        die "Could not delete $dir";
+    }
+}
+
+sub create_dir {
+    my $dir = shift;
+
+    mkdir $dir;
+    # Make sure it is created
+    if (! -d $dir) {
+        $logger->emerg(get_message("Could not create $dir"));
+        die "Could not create $dir";
+    }
+}
+
+sub check_if_latest {
+    my $pkg_dir = shift;
+    my $link_script = "${pkg_dir}/${dlink_script}";
+
+    if (-e $link_script) {
+        $logger->info(get_message("Found fetch instructions"));
+
+        my ($current_url, $latest_url) = split(/\n/, qx($link_script));
+
+        $logger->info(get_message("Downloading current version from $current_url"));
+        my $current_hash = download_and_hash($current_url);
+        $logger->info(get_message("Downloading latest version from $latest_url"));
+        my $latest_hash = download_and_hash($latest_url);
+
+        $logger->error(get_message("Failed to fetch current version")) if ($current_hash eq '');
+        $logger->error(get_message("Failed to fetch latest version")) if ($latest_hash eq '');
+
+        if (defined $current_hash && defined $latest_hash) {
+            return $current_hash eq $latest_hash;
+        }
+    } else {
+        $logger->warn(get_message("No fetch instructions found"));
+    }
+
+}
+
+sub download_and_hash {
+    my $url = shift;
+    my $ua = LWP::UserAgent->new();
+    my $response = $ua->get($url);
+    if ($response->is_success) {
+        my $file = $response->decoded_content( charset => 'none' );
+        return md5_hex($file);
+    }
+}
+
+sub check {
+    my $dir = shift;
+
+    create_dir($tmp_build);
+    $logger->info(get_message("Creating build directory"));
+    my $is_latest = check_if_latest($dir);
+    if ($is_latest) {
+        $logger->info(get_message("Package is up to date"));
+    } else {
+        $logger->warn(get_message("Package is not up to date"));
+    }
+
+    delete_dir($tmp_build);
+    $logger->info(get_message("Deleting build directory"));
+}
+
+delete_dir($tmp_build) if (-d $tmp_build);
+foreach my $dir (@dirs) {
+    $current_package = basename $dir;
+    $logger->info(get_message("Checking for updates"));
+    check($dir);
+}
+
+# Cleanup
+END {
+    $logger->info(get_message("Exiting..."));
+    delete_dir($tmp_build);
+}

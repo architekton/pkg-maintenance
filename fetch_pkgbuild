@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+[ -z $1 ] && { echo "No package name provided"; exit 1; }
+
+git clone "ssh://aur@aur.archlinux.org/${1}.git" build
