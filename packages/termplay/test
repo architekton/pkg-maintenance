@@ -3,7 +3,6 @@
 set +e
 
 arch-nspawn $CHROOT/root pacman -Syyu --noconfirm
-
 makechrootpkg -c -r $CHROOT -- -i
 
 arch-nspawn $CHROOT/$USER termplay -h

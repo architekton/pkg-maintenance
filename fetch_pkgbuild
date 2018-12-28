@@ -2,4 +2,8 @@
 
 [ -z $1 ] && { echo "No package name provided"; exit 1; }
 
-git clone "ssh://aur@aur.archlinux.org/${1}.git" build
+git clone "ssh://aur@aur.archlinux.org/${1}.git" ${1}
+
+if [ -d "packages/${1}" ]; then
+    cp "packages/${1}/test" "${1}"
+fi
