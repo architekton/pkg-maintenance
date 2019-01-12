@@ -20,6 +20,8 @@ my $dlink_script = 'download_links';
 my $test_script = 'test';
 my $current_package = '';
 
+my $lwp = LWP::UserAgent->new();
+
 # Log to syslog
 my $logger = Log::Dispatch->new(
     outputs => [
@@ -51,6 +53,24 @@ GetOptions(
 sub get_message {
     my $message = shift;
     return $current_package eq '' ? $message : "$current_package: $message";
+}
+
+# Push notification given title and body
+sub notify {
+    my ($title, $body) = @_;
+    my $token = $ENV{'PUSHB_TOKEN'};
+    if (defined $token) {
+        my $uri = "https://api.pushbullet.com/v2/pushes";
+        my $json = qq({"type": "note", "title": "$title", "body": "$body"});
+        my $req = HTTP::Request->new('POST', $uri);
+        $req->header('Content-Type' => 'application/json');
+        $req->header('Access-Token' => "$token");
+        $req->content($json);
+        my $response = $lwp->request($req);
+        $logger->error(get_message("Failed to notify")) if (!$response->is_success);
+    } else {
+        $logger->error(get_message("No env found"));
+    }
 }
 
 sub delete_dir {
@@ -103,13 +123,13 @@ sub check_if_latest {
 
 sub download_and_hash {
     my $url = shift;
-    my $ua = LWP::UserAgent->new();
-    my $response = $ua->get($url);
+    my $response = $lwp->get($url);
     if ($response->is_success) {
         my $file = $response->decoded_content( charset => 'none' );
         return md5_hex($file);
     }
 }
+
 
 sub check {
     my $dir = shift;
@@ -120,7 +140,9 @@ sub check {
     if ($is_latest) {
         $logger->info(get_message("Package is up to date"));
     } else {
-        $logger->warn(get_message("Package is not up to date"));
+        my $msg = get_message("Package is not up to date");
+        notify($script_name, $msg);
+        $logger->warn($msg);
     }
 
     delete_dir($tmp_build);
