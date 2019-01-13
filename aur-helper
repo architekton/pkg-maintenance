@@ -19,8 +19,10 @@ my $package_dir = "${script_dir}/packages";
 my $dlink_script = 'download_links';
 my $test_script = 'test';
 my $current_package = '';
+my $hour = 3600;
 
 my $lwp = LWP::UserAgent->new();
+my %notified;
 
 # Log to syslog
 my $logger = Log::Dispatch->new(
@@ -139,9 +141,13 @@ sub check {
     my $is_latest = check_if_latest($dir);
     if ($is_latest) {
         $logger->info(get_message("Package is up to date"));
+        $notified{$current_package} = 0;
     } else {
         my $msg = get_message("Package is not up to date");
-        notify($script_name, $msg);
+        if (!$notified{$current_package}) {
+            notify($script_name, $msg);
+            $notified{$current_package} = 1;
+        }
         $logger->warn($msg);
     }
 
@@ -149,11 +155,14 @@ sub check {
     $logger->info(get_message("Deleting build directory"));
 }
 
-delete_dir($tmp_build) if (-d $tmp_build);
-foreach my $dir (@dirs) {
-    $current_package = basename $dir;
-    $logger->info(get_message("Checking for updates"));
-    check($dir);
+while (1) {
+    delete_dir($tmp_build) if (-d $tmp_build);
+    foreach my $dir (@dirs) {
+        $current_package = basename $dir;
+        $logger->info(get_message("Checking for updates"));
+        check($dir);
+    }
+    sleep(4 * $hour);
 }
 
 # Cleanup
