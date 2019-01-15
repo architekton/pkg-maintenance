@@ -147,6 +147,7 @@ sub check {
         if (!$notified{$current_package}) {
             notify($script_name, $msg);
             $notified{$current_package} = 1;
+            system("$script_dir/fetch_pkgbuild", "$current_package");
         }
         $logger->warn($msg);
     }

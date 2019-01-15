@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+set +e
+
+arch-nspawn $CHROOT/root pacman -Syyu --noconfirm
+makechrootpkg -c -r $CHROOT -- -i -c
+
+arch-nspawn $CHROOT/$USER << EOF
+aquatone -h
+EOF

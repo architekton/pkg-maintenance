@@ -1,0 +1,29 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use File::Basename;
+
+my $script_dir = dirname(__FILE__);
+my $pkg_build = "$script_dir/PKGBUILD";
+
+sub get_current_url {
+    my ($name, $url) = split(/::/, qx(. $script_dir/PKGBUILD && echo \$source));
+    chomp $url;
+    return $url;
+}
+
+sub get_latest_url {
+    use LWP;
+    my $ua = LWP::UserAgent->new;
+    my $res = $ua->get('https://github.com/michenriksen/aquatone/tags');
+    if ($res->is_success) {
+        my $html = $res->decoded_content;
+        # force the list context for the match other wise it returns 1
+        my ($relative) = $html =~ /(michenriksen\/aquatone\/archive\/[^\s]+\.tar\.gz)/;
+        return "https://github.com/${relative}";
+    }
+}
+
+print get_current_url() . "\n" . get_latest_url();
