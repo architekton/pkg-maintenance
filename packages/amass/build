@@ -8,6 +8,7 @@ makechrootpkg -c -r $CHROOT -- -i -c
 arch-nspawn $CHROOT/$USER << EOF
 amass -h
 amass.netdomains -h
+amass.tracker -h
 amass.viz -h
 amass.db -h
 EOF
