@@ -58,22 +58,10 @@ sub get_message {
 }
 
 # Push notification given title and body
-# sub notify {
-#     my ($title, $body) = @_;
-#     my $token = $ENV{'PUSHB_TOKEN'};
-#     if (defined $token) {
-#         my $uri = "https://api.pushbullet.com/v2/pushes";
-#         my $json = qq({"type": "note", "title": "$title", "body": "$body"});
-#         my $req = HTTP::Request->new('POST', $uri);
-#         $req->header('Content-Type' => 'application/json');
-#         $req->header('Access-Token' => "$token");
-#         $req->content($json);
-#         my $response = $lwp->request($req);
-#         $logger->error(get_message("Failed to notify")) if (!$response->is_success);
-#     } else {
-#         $logger->error(get_message("No env found"));
-#     }
-# }
+sub notify {
+    my ($title, $body) = @_;
+    system("notify-send", $title, $body);
+}
 
 sub delete_dir {
     my $dir = shift;
@@ -146,6 +134,7 @@ sub check {
         my $msg = get_message("Package is not up to date");
         if (!$notified{$current_package}) {
             $notified{$current_package} = 1;
+            notify($script_name, $msg);
             system("$script_dir/fetch_pkgbuild", "$current_package");
         }
         $logger->warn($msg);
