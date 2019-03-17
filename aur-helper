@@ -60,7 +60,7 @@ sub get_message {
 # Push notification given title and body
 sub notify {
     my ($title, $body) = @_;
-    system("notify-send", $title, $body);
+    system("notify-send", $title, $body, "-u", "critical");
 }
 
 sub delete_dir {
