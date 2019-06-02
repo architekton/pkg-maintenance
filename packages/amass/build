@@ -6,7 +6,3 @@ arch-nspawn $CHROOT/root pacman -Syyu --noconfirm
 makechrootpkg -c -r $CHROOT -- -i -c
 
 arch-nspawn $CHROOT/$USER amass -h
-arch-nspawn $CHROOT/$USER amass.netdomains -h
-arch-nspawn $CHROOT/$USER amass.tracker -h
-arch-nspawn $CHROOT/$USER amass.viz -h
-arch-nspawn $CHROOT/$USER amass.db -h
