@@ -1,50 +1,41 @@
 # Maintainer: architekton <architekton350@gmail.com>
 
 pkgname=amass
-pkgver=3.0.18
+pkgver=3.2.3
 pkgrel=1
 pkgdesc="In-depth subdomain enumeration written in Go"
 arch=('any')
 url="https://github.com/OWASP/Amass"
 license=('Apache')
-makedepends=('go' 'git')
-source=(Amass-$pkgver.tar.gz::https://github.com/OWASP/Amass/archive/${pkgver}.tar.gz)
-sha512sums=('38656d1697f0e6e64835a29209ee040b9be7eb5a8d01d8ed6702904f1d69e199760478fc712a1115e77f2e0202196cfe5a27e69afbc5eea837b874c676931521')
+makedepends=('go-pie' 'git')
+source=(Amass-$pkgver.tar.gz::https://github.com/OWASP/Amass/archive/v${pkgver}.tar.gz)
+sha512sums=('0c2c82d7c6f19980fbbfb79528a5ba77542b7d19c5725eecf364b2dfea8bef92e6de143df586d8e15c06eaee04840e9a3568de542ab36208a9e8845d64ef7e3d')
 
+build() {
+  cd "Amass-$pkgver"
 
-prepare() {
-  mkdir -p "gopath/src/github.com/OWASP"
-  ln -rTsf "Amass-${pkgver}" "gopath/src/github.com/OWASP/Amass"
-
-  export GOPATH="${srcdir}/gopath"
-  cd "${GOPATH}/src/github.com/OWASP/Amass"
-  go get -d ./...
+  mkdir bin
+  go build \
+    -trimpath \
+    -ldflags "-extldflags $LDFLAGS" \
+    -v -o bin/ ./cmd/...
 }
 
 check() {
-  export GOPATH="${srcdir}/gopath"
-  cd "${GOPATH}/src/github.com/OWASP/Amass"
+  cd "Amass-$pkgver"
 
   go test ./...
 
-}
-
-build() {
-  export GOPATH="${srcdir}/gopath"
-  cd "${GOPATH}/src/github.com/OWASP/Amass"
-
-  go install -v ./...
+  # Remove golang mod cache otherwise makepkg clean doesn't work due to perms
+  go clean -modcache
 }
 
 package() {
-  export GOPATH="${srcdir}/gopath"
-  cd "${GOPATH}/bin"
+  cd "Amass-$pkgver"
 
   install -dm 755 "${pkgdir}/usr/share/${pkgname}"
+  install -Dm 755 "bin/${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
 
-  install -Dm755 "${pkgname}" "${pkgdir}/usr/bin/${pkgname}"
-
-  cp -a --no-preserve=ownership "$GOPATH/src/github.com/OWASP/Amass/"{wordlists/,examples/} "${pkgdir}/usr/share/${pkgname}"
-
-  chmod 644 "${pkgdir}/usr/share/${pkgname}/"{wordlists/*,examples/*}
+  cp -a --no-preserve=ownership "examples/" "${pkgdir}/usr/share/${pkgname}"
+  chmod 644 "${pkgdir}/usr/share/${pkgname}/examples/"*
 }
